@@ -1,119 +1,115 @@
-const os = require('os');
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
-const net = require('net');
-const { exec, execSync } = require('child_process');
-function ensureModule(name) {
-    try {
-        require.resolve(name);
-    } catch (e) {
-        console.log(`Module '${name}' not found. Installing...`);
-        execSync(`npm install ${name}`, { stdio: 'inherit' });
-    }
+// main.js 加强版 - 加日志 + ping 保活
+
+const UUID = "22aa7081-7880-42f9-9118-7fa950354cdb";
+const DOMAIN = "testjs.growinghacker.deno.net";
+
+const uuidHex = UUID.replace(/-/g, "");
+const uuidBytes = new Uint8Array(16);
+for (let i = 0; i < 16; i++) {
+  uuidBytes[i] = parseInt(uuidHex.slice(i*2, i*2+2), 16);
 }
-ensureModule('ws');
-const { WebSocket, createWebSocketStream } = require('ws');
-const NAME = process.env.NAME || os.hostname();
-console.log("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-console.log("甬哥Github项目  ：github.com/yonggekkk");
-console.log("甬哥Blogger博客 ：ygkkk.blogspot.com");
-console.log("甬哥YouTube频道 ：www.youtube.com/@ygkkk");
-console.log("Nodejs真一键无交互Vless代理脚本");
-console.log("当前版本：25.6.9");
-console.log("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-async function getVariableValue(variableName, defaultValue) {
-    const envValue = process.env[variableName];
-    if (envValue) {
-        return envValue; 
+
+Deno.serve((req) => {
+  if (req.headers.get("upgrade") !== "websocket") {
+    const url = new URL(req.url);
+    if (url.pathname === "/" || url.pathname === "") {
+      return new Response("Hello, World-YGkkk\n隧道运行中", { status: 200 });
     }
-    if (defaultValue) {
-        return defaultValue; 
+    if (url.pathname === `/${UUID}` || url.pathname === "/sub") {
+      const vless = `vless://${UUID}@${DOMAIN}:443?encryption=none&security=tls&sni=${DOMAIN}&fp=chrome&type=ws&host=${DOMAIN}&path=%2F#Deno-Vl-ws-tls`;
+      return new Response(vless + "\n", { status: 200 });
     }
-  let input = '';
-  while (!input) {
-    input = await ask(`请输入${variableName}: `);
-    if (!input) {
-      console.log(`${variableName}不能为空，请重新输入!`);
-    }
+    return new Response("Not Found", { status: 404 });
   }
-  return input;
-}
-function ask(question) {
-    const rl = require('readline').createInterface({ input: process.stdin, output: process.stdout });
-    return new Promise(resolve => rl.question(question, ans => { rl.close(); resolve(ans.trim()); }));
-}
-async function main() {
-    //const UUID = await getVariableValue('UUID', ''); // 为保证安全隐蔽，建议留空，可在Node.js界面下的环境变量添加处（Environment variables）,点击ADD VARIABLE，修改变量
-    const UUID = '22aa7081-7880-42f9-9118-7fa950354cdb'
-    console.log('你的UUID:', UUID);
 
-    //const PORT = await getVariableValue('PORT', '');// 为保证安全隐蔽，建议留空，可在Node.js界面下的环境变量添加处（Environment variables）,点击ADD VARIABLE，修改变量
-    const PORT = 3194
-    console.log('你的端口:', PORT);
+  const { socket, response } = Deno.upgradeWebSocket(req);
+  handleWS(socket);
+  return response;
+});
 
-    //const DOMAIN = await getVariableValue('DOMAIN', '');// 为保证安全隐蔽，建议留空，可在Node.js界面下的环境变量添加处（Environment variables）,点击ADD VARIABLE，修改变量
-    const DOMAIN = 'node63.lunes.host'
-    console.log('你的域名:', DOMAIN);
+function handleWS(ws) {
+  let tcp = null;
+  let pingTimer = null;
 
-    const httpServer = http.createServer((req, res) => {
-        if (req.url === '/') {
-            res.writeHead(200, { 'Content-Type': 'text/plain' });
-            res.end('Hello, World-YGkkk\n');
-        } else if (req.url === `/${UUID}`) {
-            let vlessURL;
-            if (NAME.includes('server') || NAME.includes('hostypanel')) {
-            vlessURL = `vless://${UUID}@${DOMAIN}:443?encryption=none&security=tls&sni=${DOMAIN}&fp=chrome&type=ws&host=${DOMAIN}&path=%2F#Vl-ws-tls-${NAME}
-vless://${UUID}@104.16.0.0:443?encryption=none&security=tls&sni=${DOMAIN}&fp=chrome&type=ws&host=${DOMAIN}&path=%2F#Vl-ws-tls-${NAME}
-vless://${UUID}@104.17.0.0:443?encryption=none&security=tls&sni=${DOMAIN}&fp=chrome&type=ws&host=${DOMAIN}&path=%2F#Vl-ws-tls-${NAME}
-vless://${UUID}@104.18.0.0:443?encryption=none&security=tls&sni=${DOMAIN}&fp=chrome&type=ws&host=${DOMAIN}&path=%2F#Vl-ws-tls-${NAME}
-vless://${UUID}@104.19.0.0:443?encryption=none&security=tls&sni=${DOMAIN}&fp=chrome&type=ws&host=${DOMAIN}&path=%2F#Vl-ws-tls-${NAME}
-vless://${UUID}@104.20.0.0:443?encryption=none&security=tls&sni=${DOMAIN}&fp=chrome&type=ws&host=${DOMAIN}&path=%2F#Vl-ws-tls-${NAME}
-vless://${UUID}@104.21.0.0:443?encryption=none&security=tls&sni=${DOMAIN}&fp=chrome&type=ws&host=${DOMAIN}&path=%2F#Vl-ws-tls-${NAME}
-vless://${UUID}@104.22.0.0:443?encryption=none&security=tls&sni=${DOMAIN}&fp=chrome&type=ws&host=${DOMAIN}&path=%2F#Vl-ws-tls-${NAME}
-vless://${UUID}@104.24.0.0:443?encryption=none&security=tls&sni=${DOMAIN}&fp=chrome&type=ws&host=${DOMAIN}&path=%2F#Vl-ws-tls-${NAME}
-vless://${UUID}@104.25.0.0:443?encryption=none&security=tls&sni=${DOMAIN}&fp=chrome&type=ws&host=${DOMAIN}&path=%2F#Vl-ws-tls-${NAME}
-vless://${UUID}@104.26.0.0:443?encryption=none&security=tls&sni=${DOMAIN}&fp=chrome&type=ws&host=${DOMAIN}&path=%2F#Vl-ws-tls-${NAME}
-vless://${UUID}@104.27.0.0:443?encryption=none&security=tls&sni=${DOMAIN}&fp=chrome&type=ws&host=${DOMAIN}&path=%2F#Vl-ws-tls-${NAME}
-vless://${UUID}@[2606:4700::]:443?encryption=none&security=tls&sni=${DOMAIN}&fp=chrome&type=ws&host=${DOMAIN}&path=%2F#Vl-ws-tls-${NAME}
-vless://${UUID}@[2400:cb00:2049::]:443?encryption=none&security=tls&sni=${DOMAIN}&fp=chrome&type=ws&host=${DOMAIN}&path=%2F#Vl-ws-tls-${NAME}
-`;
-        } else {
-            vlessURL = `vless://${UUID}@${DOMAIN}:443?encryption=none&security=tls&sni=${DOMAIN}&fp=chrome&type=ws&host=${DOMAIN}&path=%2F#Vl-ws-tls-${NAME}`;
-            }
-            res.writeHead(200, { 'Content-Type': 'text/plain' });
-            res.end(vlessURL + '\n');
-        } else {
-            res.writeHead(404, { 'Content-Type': 'text/plain' });
-            res.end('Not Found\n');
+  ws.onmessage = async (e) => {
+    try {
+      const msg = new Uint8Array(e.data);
+      console.log(`收到客户端消息，长度: ${msg.length}`);
+
+      if (!tcp) {  // 握手
+        if (msg.length < 18 || !msg.slice(1, 17).every((v, i) => v === uuidBytes[i])) {
+          console.log("UUID 不匹配，关闭");
+          return ws.close();
         }
-    });
 
-    httpServer.listen(PORT, () => {
-        console.log(`HTTP Server is running on port ${PORT}`);
-    });
+        let pos = msg[17] + 19;
+        const port = (msg[pos] << 8) | msg[pos + 1];
+        pos += 2;
+        const atyp = msg[pos++];
+        let host = "";
 
-    const wss = new WebSocket.Server({ server: httpServer });
-    const uuid = UUID.replace(/-/g, "");
-    wss.on('connection', ws => {
-        ws.once('message', msg => {
-            const [VERSION] = msg;
-            const id = msg.slice(1, 17);
-            if (!id.every((v, i) => v == parseInt(uuid.substr(i * 2, 2), 16))) return;
-            let i = msg.slice(17, 18).readUInt8() + 19;
-            const port = msg.slice(i, i += 2).readUInt16BE(0);
-            const ATYP = msg.slice(i, i += 1).readUInt8();
-            const host = ATYP == 1 ? msg.slice(i, i += 4).join('.') :
-                (ATYP == 2 ? new TextDecoder().decode(msg.slice(i + 1, i += 1 + msg.slice(i, i + 1).readUInt8())) :
-                    (ATYP == 3 ? msg.slice(i, i += 16).reduce((s, b, i, a) => (i % 2 ? s.concat(a.slice(i - 1, i + 1)) : s), []).map(b => b.readUInt16BE(0).toString(16)).join(':') : ''));
-            ws.send(new Uint8Array([VERSION, 0]));
-            const duplex = createWebSocketStream(ws);
-            net.connect({ host, port }, function () {
-                this.write(msg.slice(i));
-                duplex.on('error', () => { }).pipe(this).on('error', () => { }).pipe(duplex);
-            }).on('error', () => { });
-        }).on('error', () => { });
-    });
-console.log(`vless-ws-tls节点分享: vless://${UUID}@${DOMAIN}:443?encryption=none&security=tls&sni=${DOMAIN}&fp=chrome&type=ws&host=${DOMAIN}&path=%2F#Vl-ws-tls-${NAME}`);
+        if (atyp === 1) {
+          host = `${msg[pos]}.${msg[pos+1]}.${msg[pos+2]}.${msg[pos+3]}`;
+          pos += 4;
+        } else if (atyp === 2) {
+          const len = msg[pos++];
+          host = new TextDecoder().decode(msg.slice(pos, pos + len));
+          pos += len;
+        } else if (atyp === 3) {
+          // IPv6 简化处理
+          host = "IPv6-not-supported-in-test";
+        }
+
+        ws.send(new Uint8Array([msg[0], 0]));
+        console.log(`握手成功，回 [${msg[0]}, 0]，目标: ${host}:${port}`);
+
+        tcp = await Deno.connect({ hostname: host, port });
+        console.log("TCP 连接建立成功");
+
+        if (pos < msg.length) {
+          await tcp.write(msg.slice(pos));
+          console.log("已写入 early data");
+        }
+
+        // 启动 TCP → WS
+        (async () => {
+          try {
+            for await (const chunk of Deno.iter(tcp)) {
+              console.log(`TCP 收到数据，长度: ${chunk.length}`);
+              if (ws.readyState === WebSocket.OPEN) ws.send(chunk);
+            }
+          } catch (err) {
+            console.error("TCP 读取错误:", err);
+          } finally {
+            ws.close();
+          }
+        })();
+
+        // 每 30s ping 保活（防止 Deno Deploy 杀连接）
+        pingTimer = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(new Uint8Array([0x89, 0]));  // WebSocket ping frame
+            console.log("发送 ping 保活");
+          }
+        }, 30000);
+
+      } else {
+        console.log("转发客户端数据到 TCP，长度:", msg.length);
+        await tcp.write(msg);
+      }
+    } catch (err) {
+      console.error("WS 处理错误:", err);
+      ws.close();
+    }
+  };
+
+  ws.onclose = () => {
+    console.log("WS 关闭");
+    if (tcp) tcp.close().catch(() => {});
+    if (pingTimer) clearInterval(pingTimer);
+  };
+
+  ws.onerror = (err) => console.error("WS 错误:", err);
 }
-main();
+
+console.log("服务器启动完成");
