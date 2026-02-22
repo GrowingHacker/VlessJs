@@ -1,5 +1,6 @@
 {
   "name": "sb-nodejs",
+  "type": "commonjs",
   "version": "1.0.0",
   "description": "Node.js Server",
   "main": "app.js",
