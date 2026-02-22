@@ -49,7 +49,7 @@ async function main() {
     console.log('你的UUID:', UUID);
 
     //const PORT = await getVariableValue('PORT', '');// 为保证安全隐蔽，建议留空，可在Node.js界面下的环境变量添加处（Environment variables）,点击ADD VARIABLE，修改变量
-    const PORT = 443
+    const PORT = 8443
     console.log('你的端口:', PORT);
 
     //const DOMAIN = await getVariableValue('DOMAIN', '');// 为保证安全隐蔽，建议留空，可在Node.js界面下的环境变量添加处（Environment variables）,点击ADD VARIABLE，修改变量
